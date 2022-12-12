@@ -141,6 +141,9 @@ if __name__ == '__main__':
         elif opt.guidance == 'clip':
             from nerf.clip import CLIP
             guidance = CLIP(device)
+        elif opt.guidance == "laionide":
+            from nerf.laionide import Laionide
+            guidance = Laionide(device)
         else:
             raise NotImplementedError(f'--guidance {opt.guidance} is not implemented.')
 
