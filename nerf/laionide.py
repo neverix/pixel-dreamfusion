@@ -42,7 +42,7 @@ class Laionide(nn.Module):
         if len(ld_path) > 0:
             assert os.path.exists(
                 ld_path
-            ), f"Failed to resume from {glide_path}, file does not exist."
+            ), f"Failed to resume from {ld_path}, file does not exist."
             weights = th.load(ld_path, map_location="cpu")
             self.model, self.diffusion = create_model_and_diffusion(**options)
             self.model.load_state_dict(weights)
