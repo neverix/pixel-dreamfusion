@@ -95,14 +95,15 @@ class Karlo(nn.Module):
         return text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings
 
     def train_step(self, embeddings, pred_rgb, guidance_scale=100):
-        text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings = embeddings
-        decoder_text_mask = F.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1)
-        text_encoder_hidden_states, additive_clip_time_embeddings = self.text_proj(
-            image_embeddings=image_embeddings,
-            text_embeddings=text_embeddings,
-            text_encoder_hidden_states=text_encoder_hidden_states,
-            do_classifier_free_guidance=True,
-        )
+        with torch.autocast("cuda"):
+            text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings = embeddings
+            decoder_text_mask = F.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1)
+            text_encoder_hidden_states, additive_clip_time_embeddings = self.text_proj(
+                image_embeddings=image_embeddings,
+                text_embeddings=text_embeddings,
+                text_encoder_hidden_states=text_encoder_hidden_states,
+                do_classifier_free_guidance=True,
+            )
         
         # interp to 512x512 to be fed into vae.
 
