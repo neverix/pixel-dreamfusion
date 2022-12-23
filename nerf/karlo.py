@@ -37,59 +37,61 @@ class Karlo(nn.Module):
         self.alphas = self.scheduler.alphas_cumprod.to(self.device) # for convenience
         print(f'[INFO] loaded karlo!')
 
+    @torch.no_grad()
     def get_text_embeds(self, prompt, negative_prompt, prior_guidance_scale=4.0):
-        generator = None
-        text_embeddings, text_encoder_hidden_states, text_mask = self.pipe._encode_prompt(
-            prompt, self.device, 1, True
-        )
-        
-        # prior
-        self.prior_scheduler.set_timesteps(50, device=self.device)
-        prior_timesteps_tensor = self.prior_scheduler.timesteps
-
-        embedding_dim = self.prior.config.embedding_dim
-        prior_latents = self.pipe.prepare_latents(
-            (1, embedding_dim),
-            text_embeddings.dtype,
-            self.device,
-            generator,
-            None,
-            self.prior_scheduler,
-        )
-
-        for i, t in enumerate(self.pipe.progress_bar(prior_timesteps_tensor)):
-            # expand the latents if we are doing classifier free guidance
-            latent_model_input = torch.cat([prior_latents] * 2)
-
-            predicted_image_embedding = self.prior(
-                latent_model_input,
-                timestep=t,
-                proj_embedding=text_embeddings,
-                encoder_hidden_states=text_encoder_hidden_states,
-                attention_mask=text_mask,
-            ).predicted_image_embedding
-
-            predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
-            predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
-                predicted_image_embedding_text - predicted_image_embedding_uncond
+        with torch.autocast("cuda"):
+            generator = None
+            text_embeddings, text_encoder_hidden_states, text_mask = self.pipe._encode_prompt(
+                prompt, self.device, 1, True
             )
 
-            if i + 1 == prior_timesteps_tensor.shape[0]:
-                prev_timestep = None
-            else:
-                prev_timestep = prior_timesteps_tensor[i + 1]
+            # prior
+            self.prior_scheduler.set_timesteps(50, device=self.device)
+            prior_timesteps_tensor = self.prior_scheduler.timesteps
 
-            prior_latents = self.prior_scheduler.step(
-                predicted_image_embedding,
-                timestep=t,
-                sample=prior_latents,
-                generator=generator,
-                prev_timestep=prev_timestep,
-            ).prev_sample
+            embedding_dim = self.prior.config.embedding_dim
+            prior_latents = self.pipe.prepare_latents(
+                (1, embedding_dim),
+                text_embeddings.dtype,
+                self.device,
+                generator,
+                None,
+                self.prior_scheduler,
+            )
 
-        prior_latents = self.prior.post_process_latents(prior_latents)
+            for i, t in enumerate(self.pipe.progress_bar(prior_timesteps_tensor)):
+                # expand the latents if we are doing classifier free guidance
+                latent_model_input = torch.cat([prior_latents] * 2)
 
-        image_embeddings = prior_latents
+                predicted_image_embedding = self.prior(
+                    latent_model_input,
+                    timestep=t,
+                    proj_embedding=text_embeddings,
+                    encoder_hidden_states=text_encoder_hidden_states,
+                    attention_mask=text_mask,
+                ).predicted_image_embedding
+
+                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
+                predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
+                    predicted_image_embedding_text - predicted_image_embedding_uncond
+                )
+
+                if i + 1 == prior_timesteps_tensor.shape[0]:
+                    prev_timestep = None
+                else:
+                    prev_timestep = prior_timesteps_tensor[i + 1]
+
+                prior_latents = self.prior_scheduler.step(
+                    predicted_image_embedding,
+                    timestep=t,
+                    sample=prior_latents,
+                    generator=generator,
+                    prev_timestep=prev_timestep,
+                ).prev_sample
+
+            prior_latents = self.prior.post_process_latents(prior_latents)
+
+            image_embeddings = prior_latents
         return text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings
 
     def train_step(self, embeddings, pred_rgb, guidance_scale=100):
@@ -118,7 +120,7 @@ class Karlo(nn.Module):
 
         # predict the noise residual with unet, NO grad!
         # _t = time.time()
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast("cuda"):
             # add noise
             noise = torch.randn_like(latents)
             latents_noisy = self.scheduler.add_noise(latents, noise, t)
