@@ -144,6 +144,9 @@ if __name__ == '__main__':
         elif opt.guidance == "laionide":
             from nerf.laionide import Laionide
             guidance = Laionide(device)
+        elif opt.guidance == "karlo":
+            from nerf.karlo import Karlo
+            guidance = Karlo(device)
         else:
             raise NotImplementedError(f'--guidance {opt.guidance} is not implemented.')
 
