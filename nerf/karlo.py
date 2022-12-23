@@ -23,13 +23,6 @@ class Karlo(nn.Module):
         self.device = device
 
         print(f'[INFO] loading karlo...')
-        
-        if self.sd_version == '2.0':
-            model_key = "stabilityai/stable-diffusion-2-base"
-        elif self.sd_version == '1.5':
-            model_key = "runwayml/stable-diffusion-v1-5"
-        else:
-            raise ValueError(f'Stable-diffusion version {self.sd_version} not supported.')
 
         # Create model
         self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha").to(device)
