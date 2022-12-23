@@ -48,7 +48,7 @@ class Karlo(nn.Module):
         prior_timesteps_tensor = self.prior_scheduler.timesteps
 
         embedding_dim = self.prior.config.embedding_dim
-        prior_latents = self.prepare_latents(
+        prior_latents = self.pipe.prepare_latents(
             (1, embedding_dim),
             text_embeddings.dtype,
             self.device,
