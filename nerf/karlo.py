@@ -133,7 +133,7 @@ class Karlo(nn.Module):
                 timestep=t,
                 encoder_hidden_states=text_encoder_hidden_states,
                 class_labels=additive_clip_time_embeddings,
-                attention_mask=decoder_text_mask).sample
+                attention_mask=decoder_text_mask).sample[:, :3]
         # torch.cuda.synchronize(); print(f'[TIME] guiding: unet {time.time() - _t:.4f}s')
 
         # perform guidance (high scale from paper!)
