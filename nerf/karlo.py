@@ -25,7 +25,7 @@ class Karlo(nn.Module):
         print(f'[INFO] loading karlo...')
 
         # Create model
-        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha").to(device)
+        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16).to(device)
         self.text_proj = self.pipe.text_proj
         self.prior_scheduler = self.pipe.prior_scheduler
         self.prior = self.pipe.prior
