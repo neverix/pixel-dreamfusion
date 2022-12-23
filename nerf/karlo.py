@@ -37,7 +37,7 @@ class Karlo(nn.Module):
         self.alphas = self.scheduler.alphas_cumprod.to(self.device) # for convenience
         print(f'[INFO] loaded karlo!')
 
-    def get_text_embeds(self, prompt, negative_prompt):
+    def get_text_embeds(self, prompt, negative_prompt, prior_guidance_scale=4.0):
         generator = None
         text_embeddings, text_encoder_hidden_states, text_mask = self.pipe._encode_prompt(
             prompt, self.device, 1, True
