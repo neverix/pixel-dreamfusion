@@ -53,7 +53,7 @@ class Karlo(nn.Module):
             text_embeddings.dtype,
             self.device,
             generator,
-            prior_latents,
+            None,
             self.prior_scheduler,
         )
 
