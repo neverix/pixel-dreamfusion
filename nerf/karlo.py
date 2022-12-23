@@ -121,10 +121,11 @@ class Karlo(nn.Module):
 
         # predict the noise residual with unet, NO grad!
         # _t = time.time()
+        alpha = self.alphas[t]
         with torch.no_grad(), torch.autocast("cuda"):
             # add noise
             noise = torch.randn_like(latents)
-            latents_noisy = self.scheduler.add_noise(latents, noise, t)
+            latents_noisy = latents * (alpha ** 0.5) + noise * ((1 - alpha) ** 0.5)  # self.scheduler.add_noise(latents, noise, t)
             # pred noise
             latent_model_input = torch.cat([latents_noisy] * 2)
             noise_pred = self.unet(
@@ -140,7 +141,7 @@ class Karlo(nn.Module):
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
         # w(t), sigma_t^2
-        w = (1 - self.alphas[t])
+        w = (1 - alpha)
         # w = self.alphas[t] ** 0.5 * (1 - self.alphas[t])
         grad = w * (noise_pred.float() - noise)
 
