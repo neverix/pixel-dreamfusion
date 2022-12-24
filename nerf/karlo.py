@@ -17,23 +17,24 @@ def seed_everything(seed):
     #torch.backends.cudnn.benchmark = True
 
 class Karlo(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, fp16=False):
         super().__init__()
 
         self.device = device
+        self.fp16 = fp16
 
         print(f'[INFO] loading karlo...')
 
         # Create model
-        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16).to(device)
+        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None).to(device)
         self.text_proj = self.pipe.text_proj
         self.prior_scheduler = self.pipe.prior_scheduler
         self.prior = self.pipe.prior
         self.unet = self.pipe.decoder
         self.scheduler = self.pipe.decoder_scheduler
         self.num_train_timesteps = self.scheduler.config.num_train_timesteps
-        self.min_step = int(self.num_train_timesteps * 0.02)
-        self.max_step = int(self.num_train_timesteps * 0.98)
+        self.min_step = int(self.num_train_timesteps * 0.04)
+        self.max_step = int(self.num_train_timesteps * 0.96)
         self.alphas = self.scheduler.alphas_cumprod.to(self.device) # for convenience
         print(f'[INFO] loaded karlo!')
 
@@ -95,7 +96,7 @@ class Karlo(nn.Module):
         return text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings
 
     def train_step(self, embeddings, pred_rgb, guidance_scale=100):
-        with torch.autocast("cuda"):
+        with torch.autocast("cuda"), torch.no_grad():
             text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings = embeddings
             decoder_text_mask = F.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1)
             text_encoder_hidden_states, additive_clip_time_embeddings = self.text_proj(
@@ -137,13 +138,13 @@ class Karlo(nn.Module):
         # torch.cuda.synchronize(); print(f'[TIME] guiding: unet {time.time() - _t:.4f}s')
 
         # perform guidance (high scale from paper!)
-        noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+        noise_pred_uncond, noise_pred_text = noise_pre.float().chunk(2)
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
         # w(t), sigma_t^2
         w = (1 - alpha)
         # w = self.alphas[t] ** 0.5 * (1 - self.alphas[t])
-        grad = w * (noise_pred.float() - noise)
+        grad = w * (noise_pred - noise)
 
         # clip grad for stable training?
         # grad = grad.clamp(-10, 10)
