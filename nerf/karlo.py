@@ -108,7 +108,7 @@ class Karlo(nn.Module):
         # interp to 512x512 to be fed into vae.
 
         # _t = time.time()
-        latents = F.interpolate(pred_rgb, (64, 64), mode='bilinear', align_corners=False)
+        latents = F.interpolate(pred_rgb, (64, 64), mode='bilinear', align_corners=False) * 2.0 - 1.0
         # torch.cuda.synchronize(); print(f'[TIME] guiding: interp {time.time() - _t:.4f}s')
 
         # timestep ~ U(0.02, 0.98) to avoid very high/low noise level
