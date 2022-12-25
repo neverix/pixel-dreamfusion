@@ -17,7 +17,7 @@ def seed_everything(seed):
     #torch.backends.cudnn.benchmark = True
 
 class Karlo(nn.Module):
-    def __init__(self, device, fp16=False):
+    def __init__(self, device, fp16=True):
         super().__init__()
 
         self.device = device
