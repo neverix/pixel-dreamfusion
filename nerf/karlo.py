@@ -28,7 +28,10 @@ class Karlo(nn.Module):
 
         # Create model
         with init_empty_weights():
-            self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None).to(device)
+            self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha",
+                                                       super_res_first=None,
+                                                       super_res_last=None,
+                                                       torch_dtype=torch.float16 if fp16 else None).to(device)
         self.text_proj = self.pipe.text_proj
         self.prior_scheduler = self.pipe.prior_scheduler
         self.prior = self.pipe.prior
@@ -47,6 +50,7 @@ class Karlo(nn.Module):
             text_embeddings, text_encoder_hidden_states, text_mask = self.pipe._encode_prompt(
                 prompt, self.device, 1, True
             )
+            use_cfg = True
 
             # prior
             self.prior_scheduler.set_timesteps(50, device=self.device)
@@ -64,7 +68,7 @@ class Karlo(nn.Module):
 
             for i, t in enumerate(self.pipe.progress_bar(prior_timesteps_tensor)):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = torch.cat([prior_latents] * 2)
+                latent_model_input = torch.cat([prior_latents] * (2 if use_cfg else 1))
 
                 predicted_image_embedding = self.prior(
                     latent_model_input,
@@ -74,10 +78,11 @@ class Karlo(nn.Module):
                     attention_mask=text_mask,
                 ).predicted_image_embedding
 
-                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
-                predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
-                    predicted_image_embedding_text - predicted_image_embedding_uncond
-                )
+                if use_cfg:
+                    predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
+                    predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
+                        predicted_image_embedding_text - predicted_image_embedding_uncond
+                    )
 
                 if i + 1 == prior_timesteps_tensor.shape[0]:
                     prev_timestep = None
