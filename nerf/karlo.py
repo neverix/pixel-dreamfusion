@@ -26,7 +26,7 @@ class Karlo(nn.Module):
         print(f'[INFO] loading karlo...')
 
         # Create model
-        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None).to(device)
+        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None, device=device).to(device)
         self.text_proj = self.pipe.text_proj
         self.prior_scheduler = self.pipe.prior_scheduler
         self.prior = self.pipe.prior
@@ -112,7 +112,7 @@ class Karlo(nn.Module):
         latents = F.interpolate(pred_rgb, (64, 64), mode='bilinear', align_corners=False) * 2.0 - 1.0
         # torch.cuda.synchronize(); print(f'[TIME] guiding: interp {time.time() - _t:.4f}s')
 
-        # timestep ~ U(0.02, 0.98) to avoid very high/low noise level
+        # timestep ~ U(a, b) to avoid very high/low noise level
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
 
         # encode image into latents with vae, requires grad!
