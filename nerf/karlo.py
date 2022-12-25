@@ -123,32 +123,33 @@ class Karlo(nn.Module):
         # predict the noise residual with unet, NO grad!
         # _t = time.time()
         alpha = self.alphas[t]
-        with torch.no_grad(), torch.autocast("cuda"):
-            # add noise
-            noise = torch.randn_like(latents)
-            latents_noisy = latents * (alpha ** 0.5) + noise * ((1 - alpha) ** 0.5)  # self.scheduler.add_noise(latents, noise, t)
-            # pred noise
-            latent_model_input = torch.cat([latents_noisy] * 2)
-            noise_pred = self.unet(
-                sample=latent_model_input,
-                timestep=t,
-                encoder_hidden_states=text_encoder_hidden_states,
-                class_labels=additive_clip_time_embeddings,
-                attention_mask=decoder_text_mask).sample[:, :3]
-        # torch.cuda.synchronize(); print(f'[TIME] guiding: unet {time.time() - _t:.4f}s')
+        with torch.no_grad():
+            with torch.autocast("cuda"):
+                # add noise
+                noise = torch.randn_like(latents)
+                latents_noisy = latents * (alpha ** 0.5) + noise * ((1 - alpha) ** 0.5)  # self.scheduler.add_noise(latents, noise, t)
+                # pred noise
+                latent_model_input = torch.cat([latents_noisy] * 2)
+                noise_pred = self.unet(
+                    sample=latent_model_input,
+                    timestep=t,
+                    encoder_hidden_states=text_encoder_hidden_states,
+                    class_labels=additive_clip_time_embeddings,
+                    attention_mask=decoder_text_mask).sample[:, :3]
+                # torch.cuda.synchronize(); print(f'[TIME] guiding: unet {time.time() - _t:.4f}s')
 
-        # perform guidance (high scale from paper!)
-        noise_pred_uncond, noise_pred_text = noise_pred.float().chunk(2)
-        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+            # perform guidance (high scale from paper!)
+            noise_pred_uncond, noise_pred_text = noise_pred.float().chunk(2)
+            noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-        # w(t), sigma_t^2
-        w = (1 - alpha)
-        # w = self.alphas[t] ** 0.5 * (1 - self.alphas[t])
-        grad = w * (noise_pred - noise.float())
+            # w(t), sigma_t^2
+            w = (1 - alpha)
+            # w = self.alphas[t] ** 0.5 * (1 - self.alphas[t])
+            grad = w * (noise_pred - noise.float())
 
-        # clip grad for stable training?
-        # grad = grad.clamp(-10, 10)
-        grad = torch.nan_to_num(grad)
+            # clip grad for stable training?
+            # grad = grad.clamp(-10, 10)
+            grad = torch.nan_to_num(grad)
 
         # manually backward, since we omitted an item in grad and cannot simply autodiff.
         # _t = time.time()
