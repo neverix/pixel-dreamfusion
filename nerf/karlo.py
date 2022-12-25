@@ -1,5 +1,6 @@
-from transformers import logging
+from accelerate import init_empty_weights
 from diffusers import UnCLIPPipeline
+from transformers import logging
 
 # suppress partial model loading warning
 logging.set_verbosity_error()
@@ -26,7 +27,8 @@ class Karlo(nn.Module):
         print(f'[INFO] loading karlo...')
 
         # Create model
-        self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None, device=device).to(device)
+        with init_empty_weights():
+            self.pipe = UnCLIPPipeline.from_pretrained("kakaobrain/karlo-v1-alpha", torch_dtype=torch.float16 if fp16 else None).to(device)
         self.text_proj = self.pipe.text_proj
         self.prior_scheduler = self.pipe.prior_scheduler
         self.prior = self.pipe.prior
