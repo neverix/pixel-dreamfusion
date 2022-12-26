@@ -102,7 +102,7 @@ class Karlo(nn.Module):
             image_embeddings = prior_latents
         return text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings
 
-    def train_step(self, embeddings, pred_rgb, guidance_scale=100):
+    def train_step(self, embeddings, pred_rgb, guidance_scale=20.0):
         with torch.autocast("cuda"), torch.no_grad():
             text_embeddings, text_encoder_hidden_states, text_mask, image_embeddings = embeddings
             decoder_text_mask = F.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1)
